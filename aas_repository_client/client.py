@@ -2,7 +2,7 @@
 Todo: Store password with keyring credential locker
 """
 import json
-from typing import Set, Optional, Dict
+from typing import Optional, Dict, List
 
 import requests.auth
 
@@ -65,6 +65,26 @@ class AASRepositoryClient:
         identifiable = json.loads(response.content, cls=json_deserialization.AASFromJsonDecoder)
         assert isinstance(identifiable, model.Identifiable)
         return identifiable
+
+    def query_semantic_id(self, semantic_id: model.Key) -> List[model.Identifier]:
+        """
+        Query the repository server for a semanticID. Returns Identifiers for all Identifiable objects that contain
+        the given semanticID.
+
+        Note: Returns an empty list, if no Identifiables found,
+        """
+        response = requests.get(
+            "{}/get_identifiable".format(self.uri),
+            headers=self.auth_headers,
+            data=json.dumps(semantic_id, cls=json_serialization.AASToJsonEncoder)
+        )
+        found_identifiers: List[model.Identifier] = []
+        if response.status_code != 200:
+            return found_identifiers
+        found_identifiers.extend(json.loads(response.content, cls=json_deserialization.AASFromJsonDecoder))
+        for identifier in found_identifiers:
+            assert isinstance(identifier, model.Identifier)
+        return found_identifiers
 
 
 class AASRepositoryServerError(Exception):

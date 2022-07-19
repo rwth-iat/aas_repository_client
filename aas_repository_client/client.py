@@ -74,7 +74,7 @@ class AASRepositoryClient:
         Note: Returns an empty list, if no Identifiables found,
         """
         response = requests.get(
-            "{}/get_identifiable".format(self.uri),
+            "{}/query_semantic_id".format(self.uri),
             headers=self.auth_headers,
             data=json.dumps(semantic_id, cls=json_serialization.AASToJsonEncoder)
         )

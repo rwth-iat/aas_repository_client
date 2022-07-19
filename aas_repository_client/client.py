@@ -38,7 +38,7 @@ class AASRepositoryClient:
         self.token = json.loads(response.content)["token"]
         self.auth_headers = {"x-access-tokens": self.token}
 
-    def get_identifiable(self, identifier: model.Identifier, failsafe: bool = False) -> Optional[model.Identifier]:
+    def get_identifiable(self, identifier: model.Identifier, failsafe: bool = False) -> Optional[model.Identifiable]:
         """
         Get an Identifiable from the repository server via its Identifier
 

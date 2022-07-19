@@ -74,14 +74,21 @@ class AASRepositoryClient:
         Note: Returns an empty list, if no Identifiables found,
         """
         response = requests.get(
-            "{}/get_identifiable".format(self.uri),
+            "{}/query_semantic_id".format(self.uri),
             headers=self.auth_headers,
             data=json.dumps(semantic_id, cls=json_serialization.AASToJsonEncoder)
         )
         found_identifiers: List[model.Identifier] = []
         if response.status_code != 200:
             return found_identifiers
-        found_identifiers.extend(json.loads(response.content, cls=json_deserialization.AASFromJsonDecoder))
+        found_identifier_data = json.loads(response.content, cls=json_deserialization.AASFromJsonDecoder)
+        for identifier_data in found_identifier_data:
+            found_identifiers.append(
+                model.Identifier(
+                    id_=identifier_data["id"],
+                    id_type=json_deserialization.IDENTIFIER_TYPES_INVERSE[identifier_data["idType"]]
+                )
+            )
         for identifier in found_identifiers:
             assert isinstance(identifier, model.Identifier)
         return found_identifiers

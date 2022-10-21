@@ -102,6 +102,8 @@ class AASRepositoryServerError(Exception):
 
 
 if __name__ == '__main__':
-    client = AASRepositoryClient("http://127.0.0.1:2234", "test")
-    client.login("test")
-    print(client.token)
+    client = AASRepositoryClient("http://127.0.0.1:2234", username="test")
+    client.login(password="test")
+    print(f"Received JWT: {client.token}")
+    print(client.get_identifiable(model.Identifier(id_="https://example.com/sm/test_submodel03", id_type=model.IdentifierType.IRI)))
+    print(client.query_semantic_id(model.Key(type_=model.KeyElements.GLOBAL_REFERENCE, local=False, value="https://example.com/semanticIDs/ONE", id_type=model.KeyType.IRI)))

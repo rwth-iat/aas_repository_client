@@ -66,6 +66,61 @@ class AASRepositoryClient:
         assert isinstance(identifiable, model.Identifiable)
         return identifiable
 
+    def modify_identifiable(self, identifiable: model.Identifiable,
+                            failsafe: bool = False) -> Optional[model.Identifiable]:
+        """
+        Modify an Identifiable from the repository server
+
+        :param identifiable: Identifiable
+        :param failsafe: If True, return None, if the Identifiable is not found. Otherwise an error is raised
+        :return: True, if the identifiable was modified correctly
+        """
+        response = requests.put(
+            "{}/modify_identifiable".format(self.uri),
+            headers=self.auth_headers,
+            data=json.dumps(identifiable, cls=json_serialization.AASToJsonEncoder)
+        )
+        if response.status_code != 200:
+            if failsafe:
+                return None
+            else:
+                raise AASRepositoryServerError(
+                    "Could not fetch Identifiable with id {} from the server {}: {}".format(
+                        identifiable.identification.id,
+                        self.uri,
+                        response.content.decode("utf-8")
+                    )
+                )
+        return "Worked!"
+
+    def add_identifiable(self, identifiable: model.Identifiable,
+                            failsafe: bool = False) -> Optional[model.Identifiable]:
+        """
+        Add an Identifiable to the repository server
+
+        :param identifiable: Identifiable
+        :param failsafe: If True, return None, if the Identifiable is not found. Otherwise an error is raised
+        :return: True, if the identifiable was modified correctly
+        """
+
+        response = requests.post(
+            "{}/add_identifiable".format(self.uri),
+            headers=self.auth_headers,
+            data=json.dumps(identifiable, cls=json_serialization.AASToJsonEncoder)
+        )
+        if response.status_code != 200:
+            if failsafe:
+                return None
+            else:
+                raise AASRepositoryServerError(
+                    "Could not add Identifiable with id {} to the server {}: {}".format(
+                        identifiable.identification.id,
+                        self.uri,
+                        response.content.decode("utf-8")
+                    )
+                )
+        return "Worked!"
+
     def query_semantic_id(self, semantic_id: model.Key) -> List[model.Identifier]:
         """
         Query the repository server for a semanticID. Returns Identifiers for all Identifiable objects that contain
@@ -105,5 +160,18 @@ if __name__ == '__main__':
     client = AASRepositoryClient("http://127.0.0.1:2234", username="test")
     client.login(password="test")
     print(f"Received JWT: {client.token}")
-    print(client.get_identifiable(model.Identifier(id_="https://example.com/sm/test_submodel03", id_type=model.IdentifierType.IRI)))
-    print(client.query_semantic_id(model.Key(type_=model.KeyElements.GLOBAL_REFERENCE, local=False, value="https://example.com/semanticIDs/ONE", id_type=model.KeyType.IRI)))
+    print(client.get_identifiable(model.Identifier(id_="https://acplt.org/Simple_Submodel",
+                                                   id_type=model.IdentifierType.IRI)))
+    print(client.query_semantic_id(model.Key(type_=model.KeyElements.GLOBAL_REFERENCE, local=False,
+                                             value="http://acplt.org/Properties/SimpleProperty", id_type=model.KeyType.IRI)))
+    print(client.modify_identifiable(model.Submodel(identification=model.Identifier(
+        id_="https://acplt.org/Simple_Submodel12", id_type=model.IdentifierType.IRI), id_short="Test_ID4"),))
+
+    print(client.add_identifiable(
+        model.Submodel(identification=model.Identifier(id_="https://acplt.org/Simple_Submodel15",
+                                                       id_type=model.IdentifierType.IRI), id_short="Test_ID4",
+                       semantic_id=model.Reference((model.Key(type_=model.KeyElements.GLOBAL_REFERENCE,
+                                                              local=False,
+                                                              value='http://acplt.org/Properties/SimpleProperty',
+                                                              id_type=model.KeyType.IRI),))), ))
+

@@ -121,6 +121,31 @@ class AASRepositoryClient:
                 )
         return "Worked!"
 
+    def get_String(self, filename: str):
+
+        """
+        Test Method for flask.send_file()
+        """
+        response = requests.Response()
+        print(response.content)
+        response = requests.get(
+            "{}/get_String".format(self.uri),
+            headers=self.auth_headers,
+            data=json.dumps(filename, cls=json_serialization.AASToJsonEncoder)
+        )
+
+        print(response.content.decode(encoding='utf-8'))
+
+    def get_fmu(self, filename: str):
+        response = requests.get(
+            "{}/get_fmu".format(self.uri),
+            headers=self.auth_headers,
+            data=json.dumps(filename, cls=json_serialization.AASToJsonEncoder)
+        )
+        return response.content
+
+        return (response.content.decode(encoding='utf-8'))
+
     def query_semantic_id(self, semantic_id: model.Key) -> List[model.Identifier]:
         """
         Query the repository server for a semanticID. Returns Identifiers for all Identifiable objects that contain
@@ -160,6 +185,13 @@ if __name__ == '__main__':
     client = AASRepositoryClient("http://127.0.0.1:2234", username="test")
     client.login(password="test")
     print(f"Received JWT: {client.token}")
+
+    #2 Anfragen nacheinander oder synchron?
+    client2 = AASRepositoryClient("http://127.0.0.1:2234", username="test2")
+    client2.login(password="test2")
+    print(f"Received JWT: {client.token}")
+
+    """
     print(client.get_identifiable(model.Identifier(id_="https://acplt.org/Simple_Submodel",
                                                    id_type=model.IdentifierType.IRI)))
     print(client.query_semantic_id(model.Key(type_=model.KeyElements.GLOBAL_REFERENCE, local=False,
@@ -174,4 +206,10 @@ if __name__ == '__main__':
                                                               local=False,
                                                               value='http://acplt.org/Properties/SimpleProperty',
                                                               id_type=model.KeyType.IRI),))), ))
+    
 
+
+    print(client.get_String("test_1"))
+    print(client2.get_String("test_2"))
+    """
+    print(client.get_fmu("testText"))

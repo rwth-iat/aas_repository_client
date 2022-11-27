@@ -126,8 +126,6 @@ class AASRepositoryClient:
         """
         Test Method for flask.send_file()
         """
-        response = requests.Response()
-        print(response.content)
         response = requests.get(
             "{}/get_String".format(self.uri),
             headers=self.auth_headers,
@@ -142,9 +140,12 @@ class AASRepositoryClient:
             headers=self.auth_headers,
             data=json.dumps(filename, cls=json_serialization.AASToJsonEncoder)
         )
-        return response.content
+        file_path = 'store\\'
+        with open(file_path+filename+'.fmu', 'wb+', buffering=4096) as myzip:
+            myzip.write(response.content)
 
-        return (response.content.decode(encoding='utf-8'))
+        return filename + " transferred succesfully"
+
 
     def query_semantic_id(self, semantic_id: model.Key) -> List[model.Identifier]:
         """
@@ -212,4 +213,4 @@ if __name__ == '__main__':
     print(client.get_String("test_1"))
     print(client2.get_String("test_2"))
     """
-    print(client.get_fmu("testText"))
+    print(client.get_fmu("identity"))

@@ -121,31 +121,35 @@ class AASRepositoryClient:
                 )
         return "Worked!"
 
-    def get_String(self, filename: str):
-
+    def get_fmu(self, identifier: model.Identifier,  failsafe: bool = False):
         """
-        Test Method for flask.send_file()
-        """
-        response = requests.get(
-            "{}/get_String".format(self.uri),
-            headers=self.auth_headers,
-            data=json.dumps(filename, cls=json_serialization.AASToJsonEncoder)
-        )
+                Get an FMU-File from the repository server via its Identifier
 
-        print(response.content.decode(encoding='utf-8'))
-
-    def get_fmu(self, filename: str):
+                :param identifier: Identifier of the FMU-File
+                :param failsafe: If True, return None, if the Identifiable is not found. Otherwise an error is raised
+                :return: The Identifier
+                """
         response = requests.get(
             "{}/get_fmu".format(self.uri),
             headers=self.auth_headers,
-            data=json.dumps(filename, cls=json_serialization.AASToJsonEncoder)
+            data=json.dumps(identifier, cls=json_serialization.AASToJsonEncoder)
         )
+        if response.status_code != 200:
+            if failsafe:
+                return None
+            else:
+                raise AASRepositoryServerError(
+                    "Could not fetch FMU-File with id {} from the server {}: {}".format(
+                        identifier.id,
+                        self.uri,
+                        response.content.decode("utf-8")
+                    )
+                )
         file_path = 'store\\'
-        with open(file_path+filename+'.fmu', 'wb+', buffering=4096) as myzip:
+        file_name = identifier.id.removeprefix('file:/')
+        with open(file_path+file_name, 'wb+', buffering=4096) as myzip:
             myzip.write(response.content)
-
-        return filename + " transferred succesfully"
-
+        return file_name + " transferred succesfully"
 
     def query_semantic_id(self, semantic_id: model.Key) -> List[model.Identifier]:
         """
@@ -213,4 +217,5 @@ if __name__ == '__main__':
     print(client.get_String("test_1"))
     print(client2.get_String("test_2"))
     """
-    print(client.get_fmu("identity"))
+    print(client.get_fmu(model.Identifier(id_="file:/identity.fmu",
+                                                   id_type=model.IdentifierType.IRI)))

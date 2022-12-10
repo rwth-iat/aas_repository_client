@@ -121,18 +121,18 @@ class AASRepositoryClient:
                 )
         return "Worked!"
 
-    def get_fmu(self, identifier: model.Identifier,  failsafe: bool = False):
+    def get_fmu(self, fmu_IRI: str,  failsafe: bool = False):
         """
-                Get an FMU-File from the repository server via its Identifier
+                Get an FMU-File from the repository server via its IRI
 
-                :param identifier: Identifier of the FMU-File
-                :param failsafe: If True, return None, if the Identifiable is not found. Otherwise an error is raised
-                :return: The Identifier
+                :param fmu_IRI:IRI of the FMU-File
+                :param failsafe: If True, return None, if no FMU to the IRI is found. Otherwise an error is raised
+                :return: The ÍRI
                 """
         response = requests.get(
             "{}/get_fmu".format(self.uri),
             headers=self.auth_headers,
-            data=json.dumps(identifier, cls=json_serialization.AASToJsonEncoder)
+            data=json.dumps(fmu_IRI)
         )
         if response.status_code != 200:
             if failsafe:
@@ -140,13 +140,13 @@ class AASRepositoryClient:
             else:
                 raise AASRepositoryServerError(
                     "Could not fetch FMU-File with id {} from the server {}: {}".format(
-                        identifier.id,
+                        fmu_IRI,
                         self.uri,
                         response.content.decode("utf-8")
                     )
                 )
         file_path = 'store\\'
-        file_name = identifier.id.removeprefix('file:/')
+        file_name = fmu_IRI.removeprefix('file:/')
         with open(file_path+file_name, 'wb+', buffering=4096) as myzip:
             myzip.write(response.content)
         return file_name + " transferred succesfully"
@@ -217,5 +217,4 @@ if __name__ == '__main__':
     print(client.get_String("test_1"))
     print(client2.get_String("test_2"))
     """
-    print(client.get_fmu(model.Identifier(id_="file:/identity.fmu",
-                                                   id_type=model.IdentifierType.IRI)))
+    print(client.get_fmu("file:/identity.fmu"))

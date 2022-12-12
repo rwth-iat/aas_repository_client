@@ -9,6 +9,8 @@ import requests.auth
 from basyx.aas import model
 from basyx.aas.adapter.json import json_serialization, json_deserialization
 
+import os
+#from requests_toolbelt.multipart import encoder
 
 class AASRepositoryClient:
     def __init__(self,
@@ -55,7 +57,7 @@ class AASRepositoryClient:
             if failsafe:
                 return None
             else:
-                raise AASRepositoryServerError(
+                raise AASRepositoryClient(
                     "Could not fetch Identifiable with id {} from the server {}: {}".format(
                         identifier.id,
                         self.uri,
@@ -84,7 +86,7 @@ class AASRepositoryClient:
             if failsafe:
                 return None
             else:
-                raise AASRepositoryServerError(
+                raise AASRepositoryClient(
                     "Could not fetch Identifiable with id {} from the server {}: {}".format(
                         identifiable.identification.id,
                         self.uri,
@@ -94,7 +96,7 @@ class AASRepositoryClient:
         return "Worked!"
 
     def add_identifiable(self, identifiable: model.Identifiable,
-                            failsafe: bool = False) -> Optional[model.Identifiable]:
+                         failsafe: bool = False) -> Optional[model.Identifiable]:
         """
         Add an Identifiable to the repository server
 
@@ -102,7 +104,6 @@ class AASRepositoryClient:
         :param failsafe: If True, return None, if the Identifiable is not found. Otherwise an error is raised
         :return: True, if the identifiable was modified correctly
         """
-
         response = requests.post(
             "{}/add_identifiable".format(self.uri),
             headers=self.auth_headers,
@@ -112,7 +113,7 @@ class AASRepositoryClient:
             if failsafe:
                 return None
             else:
-                raise AASRepositoryServerError(
+                raise AASRepositoryClient(
                     "Could not add Identifiable with id {} to the server {}: {}".format(
                         identifiable.identification.id,
                         self.uri,
@@ -121,35 +122,72 @@ class AASRepositoryClient:
                 )
         return "Worked!"
 
-    def get_fmu(self, fmu_IRI: str,  failsafe: bool = False):
+    def get_fmu(self, fmu_iri: str,  failsafe: bool = False):
         """
-                Get an FMU-File from the repository server via its IRI
+        Get an FMU-File from the repository server via its IRI
 
-                :param fmu_IRI:IRI of the FMU-File
-                :param failsafe: If True, return None, if no FMU to the IRI is found. Otherwise an error is raised
-                :return: The ÍRI
-                """
+        :param fmu_iri: IRI of the FMU-File
+        :param failsafe: If True, return None, if no FMU to the IRI is found. Otherwise an error is raised
+        :return: The IRI
+        """
         response = requests.get(
             "{}/get_fmu".format(self.uri),
             headers=self.auth_headers,
-            data=json.dumps(fmu_IRI)
+            data=json.dumps(fmu_iri)
         )
         if response.status_code != 200:
             if failsafe:
                 return None
             else:
-                raise AASRepositoryServerError(
+                raise AASRepositoryClient(
                     "Could not fetch FMU-File with id {} from the server {}: {}".format(
-                        fmu_IRI,
+                        fmu_iri,
                         self.uri,
                         response.content.decode("utf-8")
                     )
                 )
         file_path = 'store\\'
-        file_name = fmu_IRI.removeprefix('file:/')
+        file_name = fmu_iri.removeprefix('file:/')
         with open(file_path+file_name, 'wb+', buffering=4096) as myzip:
             myzip.write(response.content)
         return file_name + " transferred succesfully"
+
+    def add_fmu(self, fmu_iri: str, fmu_path: str, failsafe: bool = False):
+        """
+        Add a FMU-File to the repository server
+
+        :param fmu_iri: The IRI of the FMU-File
+        :param fmu_path: The Path of the FMU-File
+        :param failsafe: If True, return None, if the FMU-File is not added. Otherwise an error is raised
+        :return: True, if the FMU-File was added correctly
+        """
+        header_with_IRI = self.auth_headers
+        header_with_IRI["IRI"] = fmu_iri
+        file_path = 'store\\'
+        file_path = file_path + fmu_path
+        if not os.path.isfile(file_path):
+            raise
+
+        def generate():
+            with open(file_path, mode='rb', buffering=4096) as myzip:
+                for chunk in myzip:
+                    yield chunk
+        response = requests.post(
+            "{}/add_fmu".format(self.uri),
+            headers=header_with_IRI,
+            data=generate())
+        if response.status_code != 200:
+            if failsafe:
+                return None
+            else:
+                raise AASRepositoryClient(
+                    "Could not add FMU with IRI {} to the server {}: {}".format(
+                        fmu_iri,
+                        self.uri,
+                        response.content.decode("utf-8")
+                    )
+                )
+        return response
 
     def query_semantic_id(self, semantic_id: model.Key) -> List[model.Identifier]:
         """
@@ -196,7 +234,7 @@ if __name__ == '__main__':
     client2.login(password="test2")
     print(f"Received JWT: {client.token}")
 
-    """
+
     print(client.get_identifiable(model.Identifier(id_="https://acplt.org/Simple_Submodel",
                                                    id_type=model.IdentifierType.IRI)))
     print(client.query_semantic_id(model.Key(type_=model.KeyElements.GLOBAL_REFERENCE, local=False,
@@ -211,10 +249,7 @@ if __name__ == '__main__':
                                                               local=False,
                                                               value='http://acplt.org/Properties/SimpleProperty',
                                                               id_type=model.KeyType.IRI),))), ))
-    
-
-
-    print(client.get_String("test_1"))
-    print(client2.get_String("test_2"))
     """
-    print(client.get_fmu("file:/identity.fmu"))
+    print(client.get_fmu("file:/big_zip_content/randomfile.txt"))
+    print(client.add_fmu('file:/FilesFromClient/randomfile2.txt', 'big_zip_content/randomfile.txt'))
+    """

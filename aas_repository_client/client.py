@@ -148,7 +148,7 @@ class AASRepositoryClient:
                 )
         file_path = 'store\\'
         file_name = fmu_iri.removeprefix('file:/')
-        with open(file_path+file_name, 'wb+', buffering=4096) as myzip:
+        with open(file_path+file_name, 'wb', buffering=4096) as myzip:
             myzip.write(response.content)
         return file_name + " transferred succesfully"
 
@@ -249,6 +249,7 @@ if __name__ == '__main__':
                                                               local=False,
                                                               value='http://acplt.org/Properties/SimpleProperty',
                                                               id_type=model.KeyType.IRI),))), ))
+
     """
     print(client.get_fmu("file:/big_zip_content/randomfile.txt"))
     print(client.add_fmu('file:/FilesFromClient/randomfile2.txt', 'big_zip_content/randomfile.txt'))

@@ -10,7 +10,7 @@ from basyx.aas import model
 from basyx.aas.adapter.json import json_serialization, json_deserialization
 
 import os
-#from requests_toolbelt.multipart import encoder
+
 
 class AASRepositoryClient:
     def __init__(self,
@@ -75,7 +75,7 @@ class AASRepositoryClient:
 
         :param identifiable: Identifiable
         :param failsafe: If True, return None, if the Identifiable is not found. Otherwise an error is raised
-        :return: True, if the identifiable was modified correctly
+        :return: The Identifier of the modified Identifiable
         """
         response = requests.put(
             "{}/modify_identifiable".format(self.uri),
@@ -93,7 +93,7 @@ class AASRepositoryClient:
                         response.content.decode("utf-8")
                     )
                 )
-        return "Worked!"
+        return identifiable.identification
 
     def add_identifiable(self, identifiable: model.Identifiable,
                          failsafe: bool = False) -> Optional[model.Identifiable]:
@@ -102,7 +102,7 @@ class AASRepositoryClient:
 
         :param identifiable: Identifiable
         :param failsafe: If True, return None, if the Identifiable is not found. Otherwise an error is raised
-        :return: True, if the identifiable was modified correctly
+        :return: The Identifier of the added Identifiable
         """
         response = requests.post(
             "{}/add_identifiable".format(self.uri),
@@ -120,7 +120,7 @@ class AASRepositoryClient:
                         response.content.decode("utf-8")
                     )
                 )
-        return "Worked!"
+        return identifiable.identification
 
     def get_fmu(self, fmu_iri: str,  failsafe: bool = False):
         """
@@ -150,23 +150,24 @@ class AASRepositoryClient:
         file_name = fmu_iri.removeprefix('file:/')
         with open(file_path+file_name, 'wb', buffering=4096) as myzip:
             myzip.write(response.content)
-        return file_name + " transferred succesfully"
+        return fmu_iri
 
-    def add_fmu(self, fmu_iri: str, fmu_path: str, failsafe: bool = False):
+    def add_fmu(self, fmu_path: str, failsafe: bool = False):
         """
         Add a FMU-File to the repository server
 
-        :param fmu_iri: The IRI of the FMU-File
         :param fmu_path: The Path of the FMU-File
         :param failsafe: If True, return None, if the FMU-File is not added. Otherwise an error is raised
-        :return: True, if the FMU-File was added correctly
+        :return: The IRI of the added FMU-File
         """
-        header_with_IRI = self.auth_headers
-        header_with_IRI["IRI"] = fmu_iri
+        header_with_name = self.auth_headers
+        header_with_name["name"] = fmu_path.split('/')[-1]
         file_path = 'store\\'
         file_path = file_path + fmu_path
         if not os.path.isfile(file_path):
-            raise
+            raise AASRepositoryClient(
+                "Could not find the FMU {} in {}".format(header_with_name["name"], file_path)
+            )
 
         def generate():
             with open(file_path, mode='rb', buffering=4096) as myzip:
@@ -174,20 +175,20 @@ class AASRepositoryClient:
                     yield chunk
         response = requests.post(
             "{}/add_fmu".format(self.uri),
-            headers=header_with_IRI,
+            headers=header_with_name,
             data=generate())
         if response.status_code != 200:
             if failsafe:
                 return None
             else:
                 raise AASRepositoryClient(
-                    "Could not add FMU with IRI {} to the server {}: {}".format(
-                        fmu_iri,
+                    "Could not add FMU {} to the server {}: {}".format(
+                        header_with_name["name"],
                         self.uri,
                         response.content.decode("utf-8")
                     )
                 )
-        return response
+        return response.content.decode()
 
     def query_semantic_id(self, semantic_id: model.Key) -> List[model.Identifier]:
         """
@@ -252,5 +253,5 @@ if __name__ == '__main__':
 
     """
     print(client.get_fmu("file:/big_zip_content/randomfile.txt"))
-    print(client.add_fmu('file:/FilesFromClient/randomfile2.txt', 'big_zip_content/randomfile.txt'))
+    print(client.add_fmu('big_zip_content/identity2.fmu'))
     """

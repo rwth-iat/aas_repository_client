@@ -57,12 +57,8 @@ class AASRepositoryClient:
             if failsafe:
                 return None
             else:
-                raise AASRepositoryClient(
-                    "Could not fetch Identifiable with id {} from the server {}: {}".format(
-                        identifier.id,
-                        self.uri,
-                        response.content.decode("utf-8")
-                    )
+                raise AASRepositoryServerError(
+                    "Response status is not 200"
                 )
         identifiable = json.loads(response.content, cls=json_deserialization.AASFromJsonDecoder)
         assert isinstance(identifiable, model.Identifiable)

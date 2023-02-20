@@ -118,18 +118,21 @@ class AASRepositoryClient:
                 )
         return identifiable.identification
 
-    def get_fmu(self, fmu_iri: str,  failsafe: bool = False):
+    def get_file(self, file_iri: str, save_as: str, failsafe: bool = False):
         """
-        Get an FMU-File from the repository server via its IRI
+        Get an File from the repository server via its IRI
 
-        :param fmu_iri: IRI of the FMU-File
-        :param failsafe: If True, return None, if no FMU to the IRI is found. Otherwise an error is raised
+        :param file_iri: IRI of the File
+        :param failsafe: If True, return None, if no File to the IRI is found.
+            Otherwise, raise an `AASRepositoryServerError`
+        :param save_as: The location (folder and filename) of where the file should be
+            saved on the local machine.
         :return: The IRI
         """
         response = requests.get(
             "{}/get_fmu".format(self.uri),
             headers=self.auth_headers,
-            data=json.dumps(fmu_iri)
+            data=json.dumps(file_iri)
         )
         if response.status_code != 200:
             if failsafe:
@@ -137,43 +140,39 @@ class AASRepositoryClient:
             else:
                 raise AASRepositoryServerError(
                     "Could not fetch FMU-File with id {} from the server {}: {}".format(
-                        fmu_iri,
+                        file_iri,
                         self.uri,
                         response.content.decode("utf-8")
                     )
                 )
-        file_path = 'store\\'
-        file_name = fmu_iri.removeprefix('file:/')
-        with open(file_path+file_name, 'wb', buffering=4096) as myzip:
-            myzip.write(response.content)
-        return fmu_iri
+        with open(save_as, 'wb', buffering=4096) as file:
+            file.write(response.content)
+        return file_iri
 
-    def add_fmu(self, fmu_path: str, failsafe: bool = False):
+    def add_file(self, file_path: str, failsafe: bool = False):
         """
-        Add a FMU-File to the repository server
+        Add a File to the repository server
 
-        :param fmu_path: The Path of the FMU-File
-        :param failsafe: If True, return None, if the FMU-File is not added. Otherwise an error is raised
-        :return: The IRI of the added FMU-File
+        :param file_path: The Path to the File
+        :param failsafe: If True, return None, if the File is not added.
+            Otherwise, raise an `AASRepositoryServerError`
+        :return: The IRI of the added File
         """
         header_with_name = self.auth_headers
-        header_with_name["name"] = fmu_path.split('/')[-1]
-        file_path = 'store\\'
-        file_path = file_path + fmu_path
+        header_with_name["name"] = file_path.split('/')[-1]
         if not os.path.isfile(file_path):
-            raise AASRepositoryServerError(
-                "Could not find the FMU {} in {}".format(
-                    header_with_name["name"],
+            raise FileNotFoundError(
+                "Could not find file in {}".format(
                     file_path
                 )
             )
 
         def generate():
-            with open(file_path, mode='rb', buffering=4096) as myzip:
-                for chunk in myzip:
+            with open(file_path, mode='rb', buffering=4096) as file:
+                for chunk in file:
                     yield chunk
         response = requests.post(
-            "{}/add_fmu".format(self.uri),
+            "{}/post_file".format(self.uri),
             headers=header_with_name,
             data=generate())
         if response.status_code != 200:

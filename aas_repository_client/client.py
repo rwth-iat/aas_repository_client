@@ -270,3 +270,28 @@ if __name__ == '__main__':
             ]))
         )
     )
+    client.add_identifiable(
+        model.Submodel(
+            identification=model.Identifier(
+                id_="https://acplt.org/ExampleSubmodel16",
+                id_type=model.IdentifierType.IRI
+            ),
+            id_short="ExampleSubmodel15",
+            semantic_id=model.Reference(tuple([
+                model.Key(
+                    type_=model.KeyElements.GLOBAL_REFERENCE,
+                    local=False,
+                    value="http://acplt.org/ExampleSemanticID",
+                    id_type=model.KeyType.IRI
+                )
+            ]))
+        )
+    )
+    print(client.query_semantic_id(
+        model.Key(
+            type_=model.KeyElements.GLOBAL_REFERENCE,
+            local=False,
+            value="http://acplt.org/ExampleSemanticID",
+            id_type=model.KeyType.IRI
+        )
+    ))

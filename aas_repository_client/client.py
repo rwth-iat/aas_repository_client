@@ -2,7 +2,7 @@
 Todo: Store password with keyring credential locker
 """
 import json
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Tuple
 
 import requests.auth
 
@@ -66,31 +66,57 @@ class AASRepositoryClient:
         assert isinstance(identifiable, model.Identifiable)
         return identifiable
 
-    def query_semantic_id(self, semantic_id: model.Key) -> List[model.Identifier]:
+    def query_semantic_id(
+            self,
+            semantic_id: model.Key,
+            check_for_key_type: bool = False,
+            check_for_key_local: bool = False,
+            check_for_key_id_type: bool = False
+    ) -> List[Tuple[model.Identifier, Optional[model.Identifier]]]:
         """
-        Query the repository server for a semanticID. Returns Identifiers for all Identifiable objects that contain
-        the given semanticID.
+        Query the repository server for a semanticID.
+        Returns a tuple(
+            Identifier of the Identifiable where the semanticID is contained (eg. a Submodel),
+            Identifier of the parent AssetAdministrationShell, if exists
+        )
 
-        Note: Returns an empty list, if no Identifiables found,
+        Note: Returns an empty list, if no results found.
         """
         response = requests.get(
             "{}/query_semantic_id".format(self.uri),
             headers=self.auth_headers,
-            data=json.dumps(semantic_id, cls=json_serialization.AASToJsonEncoder)
+            data=json.dumps(
+                {
+                    "semantic_id": semantic_id,
+                    "check_for_key_type": check_for_key_type,
+                    "check_for_key_local": check_for_key_local,
+                    "check_for_key_id_type": check_for_key_id_type
+                },
+                cls=json_serialization.AASToJsonEncoder
+            )
         )
-        found_identifiers: List[model.Identifier] = []
+        found_identifiers: List[Tuple[model.Identifier, Optional[model.Identifier]]] = []
         if response.status_code != 200:
             return found_identifiers
-        found_identifier_data = json.loads(response.content, cls=json_deserialization.AASFromJsonDecoder)
-        for identifier_data in found_identifier_data:
-            found_identifiers.append(
-                model.Identifier(
-                    id_=identifier_data["id"],
-                    id_type=json_deserialization.IDENTIFIER_TYPES_INVERSE[identifier_data["idType"]]
-                )
+        found_identifier_data = json.loads(
+            response.content,
+            cls=json_deserialization.AASFromJsonDecoder
+        )
+        for data in found_identifier_data:
+            identifier: model.Identifier = model.Identifier(
+                id_=data["identifier"]["id"],
+                id_type=json_deserialization.IDENTIFIER_TYPES_INVERSE[
+                    data["identifier"]["idType"]]
             )
-        for identifier in found_identifiers:
-            assert isinstance(identifier, model.Identifier)
+            aas_identifier: Optional[model.Identifier] = None
+            if data["asset_administration_shell"] is not None:
+                aas_identifier = model.Identifier(
+                    id_=data["asset_administration_shell"]["id"],
+                    id_type=json_deserialization.IDENTIFIER_TYPES_INVERSE[
+                        data["asset_administration_shell"]["idType"]
+                    ]
+                )
+            found_identifiers.append((identifier, aas_identifier))
         return found_identifiers
 
 

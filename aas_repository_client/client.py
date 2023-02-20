@@ -65,7 +65,7 @@ class AASRepositoryClient:
         return identifiable
 
     def modify_identifiable(self, identifiable: model.Identifiable,
-                            failsafe: bool = False) -> Optional[model.Identifiable]:
+                            failsafe: bool = False) -> Optional[model.Identifier]:
         """
         Modify an Identifiable from the repository server
 
@@ -82,7 +82,7 @@ class AASRepositoryClient:
             if failsafe:
                 return None
             else:
-                raise AASRepositoryClient(
+                raise AASRepositoryServerError(
                     "Could not fetch Identifiable with id {} from the server {}: {}".format(
                         identifiable.identification.id,
                         self.uri,
@@ -92,7 +92,7 @@ class AASRepositoryClient:
         return identifiable.identification
 
     def add_identifiable(self, identifiable: model.Identifiable,
-                         failsafe: bool = False) -> Optional[model.Identifiable]:
+                         failsafe: bool = False) -> Optional[model.Identifier]:
         """
         Add an Identifiable to the repository server
 
@@ -109,7 +109,7 @@ class AASRepositoryClient:
             if failsafe:
                 return None
             else:
-                raise AASRepositoryClient(
+                raise AASRepositoryServerError(
                     "Could not add Identifiable with id {} to the server {}: {}".format(
                         identifiable.identification.id,
                         self.uri,
@@ -135,7 +135,7 @@ class AASRepositoryClient:
             if failsafe:
                 return None
             else:
-                raise AASRepositoryClient(
+                raise AASRepositoryServerError(
                     "Could not fetch FMU-File with id {} from the server {}: {}".format(
                         fmu_iri,
                         self.uri,
@@ -161,8 +161,11 @@ class AASRepositoryClient:
         file_path = 'store\\'
         file_path = file_path + fmu_path
         if not os.path.isfile(file_path):
-            raise AASRepositoryClient(
-                "Could not find the FMU {} in {}".format(header_with_name["name"], file_path)
+            raise AASRepositoryServerError(
+                "Could not find the FMU {} in {}".format(
+                    header_with_name["name"],
+                    file_path
+                )
             )
 
         def generate():
@@ -177,7 +180,7 @@ class AASRepositoryClient:
             if failsafe:
                 return None
             else:
-                raise AASRepositoryClient(
+                raise AASRepositoryServerError(
                     "Could not add FMU {} to the server {}: {}".format(
                         header_with_name["name"],
                         self.uri,
@@ -225,29 +228,20 @@ if __name__ == '__main__':
     client = AASRepositoryClient("http://127.0.0.1:2234", username="test")
     client.login(password="test")
     print(f"Received JWT: {client.token}")
-
-    #2 Anfragen nacheinander oder synchron?
-    client2 = AASRepositoryClient("http://127.0.0.1:2234", username="test2")
-    client2.login(password="test2")
-    print(f"Received JWT: {client.token}")
-
-
-    print(client.get_identifiable(model.Identifier(id_="https://acplt.org/Simple_Submodel",
-                                                   id_type=model.IdentifierType.IRI)))
-    print(client.query_semantic_id(model.Key(type_=model.KeyElements.GLOBAL_REFERENCE, local=False,
-                                             value="http://acplt.org/Properties/SimpleProperty", id_type=model.KeyType.IRI)))
-    print(client.modify_identifiable(model.Submodel(identification=model.Identifier(
-        id_="https://acplt.org/Simple_Submodel12", id_type=model.IdentifierType.IRI), id_short="Test_ID4"),))
-
-    print(client.add_identifiable(
-        model.Submodel(identification=model.Identifier(id_="https://acplt.org/Simple_Submodel15",
-                                                       id_type=model.IdentifierType.IRI), id_short="Test_ID4",
-                       semantic_id=model.Reference((model.Key(type_=model.KeyElements.GLOBAL_REFERENCE,
-                                                              local=False,
-                                                              value='http://acplt.org/Properties/SimpleProperty',
-                                                              id_type=model.KeyType.IRI),))), ))
-
-    """
-    print(client.get_fmu("file:/big_zip_content/randomfile.txt"))
-    print(client.add_fmu('big_zip_content/identity2.fmu'))
-    """
+    client.add_identifiable(
+        model.Submodel(
+            identification=model.Identifier(
+                id_="https://acplt.org/ExampleSubmodel15",
+                id_type=model.IdentifierType.IRI
+            ),
+            id_short="ExampleSubmodel15",
+            semantic_id=model.Reference(tuple([
+                model.Key(
+                    type_=model.KeyElements.GLOBAL_REFERENCE,
+                    local=False,
+                    value="http://acplt.org/ExampleSemanticID",
+                    id_type=model.KeyType.IRI
+                )
+            ]))
+        )
+    )

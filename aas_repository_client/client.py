@@ -9,6 +9,8 @@ import requests.auth
 from basyx.aas import model
 from basyx.aas.adapter.json import json_serialization, json_deserialization
 
+import os
+
 
 class AASRepositoryClient:
     def __init__(self,
@@ -56,15 +58,135 @@ class AASRepositoryClient:
                 return None
             else:
                 raise AASRepositoryServerError(
-                    "Could not fetch Identifiable with id {} from the server {}: {}".format(
-                        identifier.id,
-                        self.uri,
-                        response.content.decode("utf-8")
-                    )
+                    "Response status is not 200"
                 )
         identifiable = json.loads(response.content, cls=json_deserialization.AASFromJsonDecoder)
         assert isinstance(identifiable, model.Identifiable)
         return identifiable
+
+    def modify_identifiable(self, identifiable: model.Identifiable,
+                            failsafe: bool = False) -> Optional[model.Identifier]:
+        """
+        Modify an Identifiable from the repository server
+
+        :param identifiable: Identifiable
+        :param failsafe: If True, return None, if the Identifiable is not found. Otherwise an error is raised
+        :return: The Identifier of the modified Identifiable
+        """
+        response = requests.put(
+            "{}/modify_identifiable".format(self.uri),
+            headers=self.auth_headers,
+            data=json.dumps(identifiable, cls=json_serialization.AASToJsonEncoder)
+        )
+        if response.status_code != 200:
+            if failsafe:
+                return None
+            else:
+                raise AASRepositoryServerError(
+                    "Could not fetch Identifiable with id {} from the server {}: {}".format(
+                        identifiable.identification.id,
+                        self.uri,
+                        response.content.decode("utf-8")
+                    )
+                )
+        return identifiable.identification
+
+    def add_identifiable(self, identifiable: model.Identifiable,
+                         failsafe: bool = False) -> Optional[model.Identifier]:
+        """
+        Add an Identifiable to the repository server
+
+        :param identifiable: Identifiable
+        :param failsafe: If True, return None, if the Identifiable is not found. Otherwise an error is raised
+        :return: The Identifier of the added Identifiable
+        """
+        response = requests.post(
+            "{}/add_identifiable".format(self.uri),
+            headers=self.auth_headers,
+            data=json.dumps(identifiable, cls=json_serialization.AASToJsonEncoder)
+        )
+        if response.status_code != 200:
+            if failsafe:
+                return None
+            else:
+                raise AASRepositoryServerError(
+                    "Could not add Identifiable with id {} to the server {}: {}".format(
+                        identifiable.identification.id,
+                        self.uri,
+                        response.content.decode("utf-8")
+                    )
+                )
+        return identifiable.identification
+
+    def get_file(self, file_iri: str, save_as: str, failsafe: bool = False):
+        """
+        Get an File from the repository server via its IRI
+
+        :param file_iri: IRI of the File
+        :param failsafe: If True, return None, if no File to the IRI is found.
+            Otherwise, raise an `AASRepositoryServerError`
+        :param save_as: The location (folder and filename) of where the file should be
+            saved on the local machine.
+        :return: The IRI
+        """
+        response = requests.get(
+            "{}/get_fmu".format(self.uri),
+            headers=self.auth_headers,
+            data=json.dumps(file_iri)
+        )
+        if response.status_code != 200:
+            if failsafe:
+                return None
+            else:
+                raise AASRepositoryServerError(
+                    "Could not fetch FMU-File with id {} from the server {}: {}".format(
+                        file_iri,
+                        self.uri,
+                        response.content.decode("utf-8")
+                    )
+                )
+        with open(save_as, 'wb', buffering=4096) as file:
+            file.write(response.content)
+        return file_iri
+
+    def add_file(self, file_path: str, failsafe: bool = False):
+        """
+        Add a File to the repository server
+
+        :param file_path: The Path to the File
+        :param failsafe: If True, return None, if the File is not added.
+            Otherwise, raise an `AASRepositoryServerError`
+        :return: The IRI of the added File
+        """
+        header_with_name = self.auth_headers
+        header_with_name["name"] = file_path.split('/')[-1]
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(
+                "Could not find file in {}".format(
+                    file_path
+                )
+            )
+
+        def generate():
+            with open(file_path, mode='rb', buffering=4096) as file:
+                for chunk in file:
+                    yield chunk
+        response = requests.post(
+            "{}/post_file".format(self.uri),
+            headers=header_with_name,
+            data=generate())
+        if response.status_code != 200:
+            if failsafe:
+                return None
+            else:
+                raise AASRepositoryServerError(
+                    "Could not add FMU {} to the server {}: {}".format(
+                        header_with_name["name"],
+                        self.uri,
+                        response.content.decode("utf-8")
+                    )
+                )
+        return response.content.decode()
 
     def query_semantic_id(
             self,
@@ -131,5 +253,20 @@ if __name__ == '__main__':
     client = AASRepositoryClient("http://127.0.0.1:2234", username="test")
     client.login(password="test")
     print(f"Received JWT: {client.token}")
-    print(client.get_identifiable(model.Identifier(id_="https://example.com/sm/test_submodel03", id_type=model.IdentifierType.IRI)))
-    print(client.query_semantic_id(model.Key(type_=model.KeyElements.GLOBAL_REFERENCE, local=False, value="https://example.com/semanticIDs/ONE", id_type=model.KeyType.IRI)))
+    client.add_identifiable(
+        model.Submodel(
+            identification=model.Identifier(
+                id_="https://acplt.org/ExampleSubmodel15",
+                id_type=model.IdentifierType.IRI
+            ),
+            id_short="ExampleSubmodel15",
+            semantic_id=model.Reference(tuple([
+                model.Key(
+                    type_=model.KeyElements.GLOBAL_REFERENCE,
+                    local=False,
+                    value="http://acplt.org/ExampleSemanticID",
+                    id_type=model.KeyType.IRI
+                )
+            ]))
+        )
+    )
